@@ -1,0 +1,9 @@
+.search {
+    background-image: url('/public/img/search.png');
+    background-color: inherit;
+    background-size: cover;
+    width: 36px;
+    border: none;
+    margin-left: 10px;
+    margin-right: 3em;
+}

@@ -1,0 +1,10 @@
+.bar {
+    background-color: #332E30;
+    /* height: 5%; */
+    /* width: 70%; */
+    width: 1100px;
+    height: 40px;
+    border-radius: 50px;
+    display: flex;
+    padding: 15px;
+}

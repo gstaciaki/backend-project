@@ -1,0 +1,23 @@
+.delete {
+    display: flex;
+    align-items: center;
+    border: 1px solid #d9d9d9;
+    border-radius: 25px;
+    color: #d9d9d9;
+    padding: 0 10px;
+}
+
+.delete:hover {
+    cursor: pointer;
+}
+
+.delete button{
+    background-image: url('/public/img/trash.png');
+    background-color: inherit;
+    background-size: cover;
+    width: 36px;
+    height: 36px;
+    border: none;
+    margin: 0;
+    transform: rotate(0deg);
+}

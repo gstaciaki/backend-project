@@ -1,0 +1,10 @@
+.usersBlock {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.usersBlock .icon {
+    
+    margin: 0 -23px;
+}

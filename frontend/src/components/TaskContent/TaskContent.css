@@ -1,0 +1,7 @@
+.content {
+    width: 100%;
+    height: calc(100% - 46px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

@@ -1,0 +1,45 @@
+.detailsBlock {
+    margin-top: 50px;
+    margin-bottom: 25px;
+    border-radius: 25px;
+    width: 100%;
+    height: 100%;
+    background-color: #1e1e1e;
+}
+
+.detailsBlock thead {
+    text-align: center;
+    color: #d9d9d9;
+    font-size: 28px;
+    padding: 5px;
+    border-bottom: 1px solid #d9d9d9;
+    border-collapse: collapse;
+}
+
+.detailsBlock tbody {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.detailsBlock th, .detailsBlock tr {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.detailsBlock th td {
+    border-right: 1px solid #d9d9d9;
+}
+
+.detailsBlock td {
+    padding: 5px 0px;
+    border-bottom: 1px solid #d9d9d9;
+    color: #d9d9d9;
+    height: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

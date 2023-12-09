@@ -1,0 +1,12 @@
+.background {
+    background-color: #332E30;
+    /* width: 70%; */
+    /* height: 55%; */
+    width: 1100px;
+    height: 440px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;  
+  }
+  
