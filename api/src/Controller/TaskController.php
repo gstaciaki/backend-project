@@ -14,18 +14,6 @@ class TaskController
         $this->pdo = $pdo;
     }
 
-    public function testDatabaseConnection()
-    {
-        $connected = $this->isDatabaseConnected();
-
-        if ($connected) {
-            return new JsonResponse(['message' => 'Conexão com o banco de dados estabelecida com sucesso.'], 200);
-        } else {
-            return new JsonResponse(['message' => 'Falha na conexão com o banco de dados.'], 500);
-        }
-    }
-
-
     public function getAllTasks(): array
     {
         try {
@@ -51,10 +39,13 @@ class TaskController
 
             $tasks = [];
             foreach ($tasksData as $taskData) {
-                // Decodificar a string JSON da coluna 'owners' para obter um array de usuários
+
                 $owners = json_decode($taskData['owners'], true);
 
-                // Construir a Task com o array de owners
+                $owners = array_filter($owners, function ($owner) {
+                    return $owner['user_id'] !== null;
+                });
+
                 $task = new Task(
                     $taskData['task_id'],
                     $taskData['title'],
@@ -65,7 +56,6 @@ class TaskController
                     $owners
                 );
 
-                // Converta a tarefa para um array associativo
                 $taskArray = [
                     'id' => $task->getId(),
                     'title' => $task->getTitle(),
@@ -120,7 +110,10 @@ class TaskController
 
             $owners = json_decode($taskData['owners'], true);
 
-            // Construct the Task with the array of owners
+            $owners = array_filter($owners, function ($owner) {
+                return $owner['user_id'] !== null;
+            });
+
             $task = new Task(
                 $taskData['task_id'],
                 $taskData['title'],
@@ -131,7 +124,6 @@ class TaskController
                 $owners
             );
 
-            // Convert the task to an associative array
             $taskArray = [
                 'id' => $task->getId(),
                 'title' => $task->getTitle(),
@@ -163,51 +155,73 @@ class TaskController
                 $formattedCreatedAt,
             ]);
         } catch (\PDOException $e) {
-            // Lidar com erros, por exemplo, lançando uma exceção ou registrando o erro
+
         }
     }
 
-    // Adicione este método à classe TaskController
-public function updateTaskObject(Task $task, array $owners)
-{
-    try {
-        $this->pdo->beginTransaction();
+    public function updateTaskObject(Task $task, array $owners = null)
+    {
+        try {
+            $this->pdo->beginTransaction();
 
-        // Atualize os detalhes da tarefa (title, due_date, priority)
-        $stmtTask = $this->pdo->prepare('
+            $stmtTask = $this->pdo->prepare('
             UPDATE tasks 
-            SET title = :title, due_date = :dueDate, priority = :priority 
+            SET title = :title, due_date = :dueDate, priority = :priority, finished_at = :finishedAt 
             WHERE id = :taskId
         ');
 
-        $stmtTask->bindParam(':title', $task->getTitle());
-        $stmtTask->bindParam(':dueDate', $task->getDueDate());
-        $stmtTask->bindParam(':priority', $task->getPriority());
-        $stmtTask->bindParam(':taskId', $task->getId());
+            $newTitle = $task->getTitle();
+            $newDueDate = $task->getDueDate();
+            $newPriority = $task->getPriority();
+            $finishedAt = new DateTime();
+            $formatedFinishedAt = $finishedAt->format('Y-m-d H:i:s');
+            $taskId = $task->getId();
 
-        $stmtTask->execute();
+            $stmtTask->bindParam(':title', $newTitle);
+            $stmtTask->bindParam(':dueDate', $newDueDate);
+            $stmtTask->bindParam(':priority', $newPriority);
+            $stmtTask->bindParam(':finishedAt', $formatedFinishedAt);
+            $stmtTask->bindParam(':taskId', $taskId);
 
-        // Exclua os proprietários antigos
-        $stmtDeleteOwners = $this->pdo->prepare('DELETE FROM task_users WHERE task_id = :taskId');
-        $stmtDeleteOwners->bindParam(':taskId', $task->getId());
-        $stmtDeleteOwners->execute();
+            $stmtTask->execute();
 
-        // Insira os novos proprietários
-        $stmtInsertOwners = $this->pdo->prepare('INSERT INTO task_users (task_id, user_id) VALUES (:taskId, :userId)');
-        $stmtInsertOwners->bindParam(':taskId', $task->getId());
+            if ($owners !== null) {
+                $stmtDeleteOwners = $this->pdo->prepare('DELETE FROM task_users WHERE task_id = :taskId');
+                $stmtDeleteOwners->bindParam(':taskId', $taskId);
+                $stmtDeleteOwners->execute();
 
-        foreach ($owners as $owner) {
-            $stmtInsertOwners->bindParam(':userId', $owner['user_id']);
-            $stmtInsertOwners->execute();
+                $stmtInsertOwners = $this->pdo->prepare('INSERT INTO task_users (task_id, user_id) VALUES (:taskId, :userId)');
+                $stmtInsertOwners->bindParam(':taskId', $taskId);
+
+                foreach ($owners as $ownerId) {
+                    $stmtInsertOwners->bindParam(':userId', $ownerId);
+                    $stmtInsertOwners->execute();
+                }
+            }
+
+            $this->pdo->commit();
+
+            return ['message' => 'Task updated successfully'];
+        } catch (\PDOException $e) {
+            $this->pdo->rollBack();
+            return ['error' => 'Error updating task and owners: ' . $e->getMessage()];
         }
-
-        $this->pdo->commit();
-
-        return ['message' => 'Task updated successfully'];
-    } catch (\PDOException $e) {
-        $this->pdo->rollBack();
-        return ['error' => 'Error updating task and owners: ' . $e->getMessage()];
     }
-}
+
+    public function deleteTask($taskId)
+    {
+        try {
+
+            $stmt = $this->pdo->prepare('
+            DELETE from tasks WHERE id = :taskId
+        ');
+            $stmt->bindParam(':taskId', $taskId);
+            $stmt->execute();
+
+            return $this->getTaskById($taskId);
+        } catch (\PDOException $e) {
+            return false;
+        }
+    }
 
 }

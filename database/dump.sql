@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`task_comments` (
   `id` INT NOT NULL,
   `task_id` INT NULL,
   `description` TEXT NULL,
+  `image` TEXT NULL,
   PRIMARY KEY (`id`),
   INDEX `task_mother_idx` (`task_id` ASC) VISIBLE,
   CONSTRAINT `task_mother`

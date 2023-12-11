@@ -13,6 +13,8 @@ services:
       context: ./api
     ports:
       - "80:80"
+    volumes:
+      - ./api:/var/www/html
 
   database:
     image: mysql:latest

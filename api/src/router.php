@@ -2,65 +2,63 @@
 
 use App\Controller\TaskController;
 use App\Models\Task;
+use App\Controller\UserController;
+use App\Models\User;
 
 require_once 'Controller/TaskController.php';
+require_once 'Controller/UserController.php';
 
 
 function handleRequest($method, $uri)
 {
+    require_once 'config.php';
+
+    $taskController = new TaskController($pdo);
+
     if ($method === 'GET' && $uri === '/api/tasks') {
-        return handleGetTasks();
+        return handleGetTasks($taskController);
     }
     if ($method === 'POST' && $uri === '/api/tasks') {
-        return handlePostTask();
+        return handlePostTask($taskController);
     }
     if ($method === 'GET' && strpos($uri, '/api/tasks/') === 0) {
         $taskId = intval(substr($uri, 11));
-        return handleGetTasks($taskId);
+        return handleGetTasks($taskController, $taskId);
     }
     if ($method === 'PUT' && strpos($uri, '/api/tasks/') === 0) {
         $taskId = intval(substr($uri, 11));
-        return handleUpdateTask($taskId);
+        return handleUpdateTask($taskController, $taskId);
     }
+    if ($method === 'DELETE' && strpos($uri, '/api/tasks/') === 0) {
+        $taskId = intval(substr($uri, 11));
+        return handleDeleteTask($taskController, $taskId);
+    }
+
+
 
     http_response_code(404);
-    return ['erro' => 'Rota não encontrada'];
+    return ['error' => 'Route not found'];
 
 }
 
-function handlePostTask()
+function handlePostTask($taskController)
 {
     $dados = json_decode(file_get_contents("php://input"), true);
-    require_once 'config.php';
 
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $taskController->createNewTask($dados['title']);
 
-        $taskController = new TaskController($pdo);
-
-        $tasks = $taskController->createNewTask($dados['title']);
-
-        // Retornar as tarefas
-        return ['mensagem' => 'Task inserida com sucesso', 'dados' => $dados];
+        return ['mensagem' => 'Task inserida com sucesso'];
     } catch (PDOException $e) {
-        // Lidar com erros de conexão com o banco de dados
-        return ['erro' => 'Falha na conexão com o banco de dados: ' . $e->getMessage()];
+        return ['erro' => 'Database connection failed: ' . $e->getMessage()];
     }
 }
 
-function handleUpdateTask($taskId)
+function handleUpdateTask($taskController, $taskId)
 {
     $dados = json_decode(file_get_contents("php://input"), true);
-    require_once 'config.php';
 
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        $taskController = new TaskController($pdo);
-
-        // Obter a tarefa existente
         $existingTaskData = $taskController->getTaskById($taskId);
 
         if (isset($existingTaskData['error'])) {
@@ -68,26 +66,18 @@ function handleUpdateTask($taskId)
             return ['error' => 'Tarefa não encontrada'];
         }
 
-        // Criar uma instância de Task com os dados existentes
-        $existingTask = new Task(
-            $existingTaskData['id'],
-            $existingTaskData['title'],
-            $existingTaskData['created_at'],
-            $existingTaskData['finished_at'],
-            $existingTaskData['due_date'],
-            $existingTaskData['priority'],
-            $existingTaskData['owners']
+        $task = new Task(
+            $taskId,
+            $dados['title'] ?? $existingTaskData['title'],
+            $dados['created_at'] ?? $existingTaskData['created_at'],
+            $dados['finished_at'] ?? $existingTaskData['finished_at'],
+            $dados['due_date'] ?? $existingTaskData['due_date'],
+            $dados['priority'] ?? $existingTaskData['priority'],
         );
 
-        // Atualizar apenas as propriedades não nulas do objeto Task
-        foreach ($dados as $key => $value) {
-            if (!is_null($value)) {
-                $existingTask->{$key} = $value;
-            }
-        }
+        $owners = $dados['owners'] ?? null;
 
-        // Atualizar a tarefa no banco de dados
-        $result = $taskController->updateTaskObject($existingTask);
+        $result = $taskController->updateTaskObject($task, $owners);
 
         if (isset($result['error'])) {
             http_response_code(500);
@@ -95,35 +85,39 @@ function handleUpdateTask($taskId)
 
         return $result;
     } catch (PDOException $e) {
-        // Lidar com erros de conexão com o banco de dados
-        return ['erro' => 'Falha na conexão com o banco de dados: ' . $e->getMessage()];
+        return ['erro' => 'Database connection failed: ' . $e->getMessage()];
     }
 }
 
-
-function handleGetTasks($taskId = null)
+function handleGetTasks($taskController, $taskId = null)
 {
-    require_once 'config.php';
-
     try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        $taskController = new TaskController($pdo);
-
         if ($taskId !== null) {
             $task = $taskController->getTaskById($taskId);
 
             return $task;
         }
 
-        // Obter todas as tarefas
-        $tasks = $taskController->getAllTasks();
-
-        // Retornar as tarefas
-        return $tasks;
+        return $taskController->getAllTasks();
     } catch (PDOException $e) {
-        // Lidar com erros de conexão com o banco de dados
-        return ['erro' => 'Falha na conexão com o banco de dados: ' . $e->getMessage()];
+        return ['erro' => 'Database connection failed: ' . $e->getMessage()];
+    }
+}
+
+function handleDeleteTask($taskController, $taskId)
+{
+    try {
+        $existingTaskData = $taskController->getTaskById($taskId);
+
+        if (isset($existingTaskData['error'])) {
+            http_response_code(404);
+            return ['error' => 'Task not found'];
+        }
+
+        $taskController->deleteTask($taskId);
+
+        return $existingTaskData;
+    } catch (PDOException $e) {
+        return ['erro' => 'Database connection failed: ' . $e->getMessage()];
     }
 }
