@@ -165,30 +165,23 @@ class TaskController
             $this->pdo->beginTransaction();
 
             $stmtTask = $this->pdo->prepare('
-            UPDATE tasks 
-            SET title = :title, due_date = :dueDate, priority = :priority, finished_at = :finishedAt 
-            WHERE id = :taskId
-        ');
+                UPDATE tasks 
+                SET title = :title, due_date = :dueDate, priority = :priority, finished_at = :finishedAt 
+                WHERE id = :taskId');
 
-            $newTitle = $task->getTitle();
-            $newDueDate = $task->getDueDate();
-            $newPriority = $task->getPriority();
-            $finishedAt = new DateTime();
-            $formatedFinishedAt = $finishedAt->format('Y-m-d H:i:s');
             $taskId = $task->getId();
 
-            $stmtTask->bindParam(':title', $newTitle);
-            $stmtTask->bindParam(':dueDate', $newDueDate);
-            $stmtTask->bindParam(':priority', $newPriority);
-            $stmtTask->bindParam(':finishedAt', $formatedFinishedAt);
-            $stmtTask->bindParam(':taskId', $taskId);
-
-            $stmtTask->execute();
+            $stmtTask->execute([
+                ':title' => $task->getTitle(),
+                ':dueDate' => $task->getDueDate(),
+                ':priority' => $task->getPriority(),
+                ':finishedAt' => $task->getFinishedAt(),
+                ':taskId' => $taskId,
+            ]);
 
             if ($owners !== null) {
                 $stmtDeleteOwners = $this->pdo->prepare('DELETE FROM task_users WHERE task_id = :taskId');
-                $stmtDeleteOwners->bindParam(':taskId', $taskId);
-                $stmtDeleteOwners->execute();
+                $stmtDeleteOwners->execute([':taskId' => $taskId]);
 
                 $stmtInsertOwners = $this->pdo->prepare('INSERT INTO task_users (task_id, user_id) VALUES (:taskId, :userId)');
                 $stmtInsertOwners->bindParam(':taskId', $taskId);
@@ -207,6 +200,7 @@ class TaskController
             return ['error' => 'Error updating task and owners: ' . $e->getMessage()];
         }
     }
+
 
     public function deleteTask($taskId)
     {

@@ -18,7 +18,7 @@ class UserController
     {
         try {
             $stmt = $this->pdo->query('
-                SELECT * FROM users;
+                SELECT * FROM user;
             ');
 
             $usersData = $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -32,7 +32,7 @@ class UserController
                     $userData['email'],
                     $userData['created_at'],
                     $userData['full_name'],
-                    $userData['is_admin']
+                    $userData['admin']
                 );
 
                 $userArray = [
@@ -42,7 +42,7 @@ class UserController
                     'email' => $user->getEmail(),
                     'created_at' => $user->getCreatedAt(),
                     'full_name' => $user->getFullName(),
-                    'is_admin' => $user->isAdmin(),
+                    'admin' => $user->isAdmin(),
                 ];
 
                 $users[] = $userArray;
@@ -58,7 +58,7 @@ class UserController
     {
         try {
             $stmt = $this->pdo->prepare('
-                SELECT * FROM users WHERE id = :userId;
+                SELECT * FROM user WHERE id = :userId;
             ');
 
             $stmt->bindParam(':userId', $userId);
@@ -77,7 +77,7 @@ class UserController
                 $userData['email'],
                 $userData['created_at'],
                 $userData['full_name'],
-                $userData['is_admin']
+                $userData['admin']
             );
 
             $userArray = [
@@ -98,16 +98,39 @@ class UserController
 
     public function createNewUser($username, $password, $email, $fullName, $isAdmin)
     {
+        $props = [
+            'username' => $username,
+            'password' => $password,
+            'email' => $email,
+            'fullName' => $fullName,
+            'isAdmin' => $isAdmin
+        ];
+
+        foreach ($props as $key => $value) {
+            if ($value === null) {
+                return ['error' => $key . ' is missing'];
+            }
+        }
+        $createdAt = new DateTime();
+        $formattedCreatedAt = $createdAt->format('Y-m-d H:i:s');
         try {
-            $createdAt = new DateTime();
-            $formattedCreatedAt = $createdAt->format('Y-m-d H:i:s');
+
 
             $stmt = $this->pdo->prepare('
-                INSERT INTO users (username, password, email, created_at, full_name, is_admin) 
+                INSERT INTO user (username, password, email, created_at, full_name, admin) 
                 VALUES (?, ?, ?, ?, ?, ?);
             ');
 
-            $stmt->execute([$username, $password, $email, $formattedCreatedAt, $fullName, $isAdmin]);
+            $stmt->execute([
+                $username,
+                $password,
+                $email,
+                $formattedCreatedAt,
+                $fullName,
+                $isAdmin ? true : false
+            ]);
+
+            return ['message' => 'User succefully created'];
         } catch (\PDOException $e) {
             return ['error' => 'Error creating user: ' . $e->getMessage()];
         }
@@ -117,22 +140,22 @@ class UserController
     {
         try {
             $stmt = $this->pdo->prepare('
-                UPDATE users 
+                UPDATE user 
                 SET username = :username, password = :password, 
                     email = :email, created_at = :createdAt, 
-                    full_name = :fullName, is_admin = :isAdmin 
+                    full_name = :fullName, admin = :isAdmin 
                 WHERE id = :userId;
             ');
 
-            $stmt->bindParam(':username', $user->getUsername());
-            $stmt->bindParam(':password', $user->getPassword());
-            $stmt->bindParam(':email', $user->getEmail());
-            $stmt->bindParam(':createdAt', $user->getCreatedAt());
-            $stmt->bindParam(':fullName', $user->getFullName());
-            $stmt->bindParam(':isAdmin', $user->isAdmin());
-            $stmt->bindParam(':userId', $user->getId());
-
-            $stmt->execute();
+            $stmt->execute([
+                ':username' => $user->getUsername(),
+                ':password' => $user->getPassword(),
+                ':email' => $user->getEmail(),
+                ':createdAt' => $user->getCreatedAt(),
+                ':fullName' => $user->getFullName(),
+                ':isAdmin' => $user->isAdmin(),
+                ':userId' => $user->getId(),
+            ]);
 
             return ['message' => 'User updated successfully'];
         } catch (\PDOException $e) {
@@ -144,13 +167,13 @@ class UserController
     {
         try {
             $stmt = $this->pdo->prepare('
-                DELETE FROM users WHERE id = :userId;
+                DELETE FROM user WHERE id = :userId;
             ');
 
             $stmt->bindParam(':userId', $userId);
             $stmt->execute();
 
-            return $this->getUserById($userId);
+            return true;
         } catch (\PDOException $e) {
             return ['error' => 'Error deleting user: ' . $e->getMessage()];
         }
