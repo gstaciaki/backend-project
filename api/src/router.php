@@ -20,6 +20,23 @@ function handleRequest($method, $uri)
     $userController = new UserController($pdo);
     $commentController = new CommentController($pdo);
 
+    if ($method === 'POST' && $uri === '/api/login') {
+        return handlePostLogin($userController);
+    }
+
+    $headers = getallheaders();
+    if (!isset($headers['Authorization'])) {
+        http_response_code(401);
+        return ['error' => 'Authorization header is missing'];
+    }
+
+    $authorizationHeader = $headers['Authorization'];
+
+    if (!$userController->verifySession($authorizationHeader)) {
+        http_response_code(403);
+        return ['error' => 'Not authorized'];
+    }
+
     if ($method === 'GET' && preg_match('/\/tasks\/(\d+)\/comments/', $uri, $matches)) {
         $taskId = intval($matches[1]);
         return handleGetTaskComments($commentController, $taskId);
@@ -39,7 +56,6 @@ function handleRequest($method, $uri)
         $commentId = intval($matches[2]);
         return handleDeleteComment($commentController, $commentId);
     }
-
     if ($method === 'GET' && $uri === '/api/tasks') {
         return handleGetTasks($taskController);
     }
@@ -50,12 +66,12 @@ function handleRequest($method, $uri)
         $taskId = intval(substr($uri, 11));
         return handleGetTasks($taskController, $taskId);
     }
-    // if ($method === 'PUT' && strpos($uri, '/api/tasks/') === 0) {
-    //     $taskId = intval(substr($uri, 11));
-    //     return handleUpdateTask($taskController, $taskId);
-    // }
-    if ($method === 'DELETE' && strpos($uri, '/api/tasks/') === 0) {
-        $taskId = intval(substr($uri, 11));
+    if ($method === 'PUT' && preg_match('/\/tasks\/(\d+)/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
+        return handleUpdateTask($taskController, $taskId);
+    }
+    if ($method === 'DELETE' && preg_match('/\/tasks\/(\d+)/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
         return handleDeleteTask($taskController, $taskId);
     }
     if ($method === 'GET' && $uri === '/api/users') {
@@ -83,10 +99,10 @@ function handleRequest($method, $uri)
 
 function handlePostTask($taskController)
 {
-    $dados = json_decode(file_get_contents("php://input"), true);
+    $data = json_decode(file_get_contents("php://input"), true);
 
     try {
-        $taskController->createNewTask($dados['title']);
+        $taskController->createNewTask($data['title']);
 
         return ['mensagem' => 'Task inserida com sucesso'];
     } catch (PDOException $e) {
@@ -96,7 +112,7 @@ function handlePostTask($taskController)
 
 function handleUpdateTask($taskController, $taskId)
 {
-    $dados = json_decode(file_get_contents("php://input"), true);
+    $data = json_decode(file_get_contents("php://input"), true);
 
     try {
         $existingTaskData = $taskController->getTaskById($taskId);
@@ -108,14 +124,14 @@ function handleUpdateTask($taskController, $taskId)
 
         $task = new Task(
             $taskId,
-            $dados['title'] ?? $existingTaskData['title'],
-            $dados['created_at'] ?? $existingTaskData['created_at'],
-            $dados['finished_at'] ?? $existingTaskData['finished_at'],
-            $dados['due_date'] ?? $existingTaskData['due_date'],
-            $dados['priority'] ?? $existingTaskData['priority'],
+            $data['title'] ?? $existingTaskData['title'],
+            $data['created_at'] ?? $existingTaskData['created_at'],
+            $data['finished_at'] ?? $existingTaskData['finished_at'],
+            $data['due_date'] ?? $existingTaskData['due_date'],
+            $data['priority'] ?? $existingTaskData['priority'],
         );
 
-        $owners = $dados['owners'] ?? null;
+        $owners = $data['owners'] ?? null;
 
         $result = $taskController->updateTaskObject($task, $owners);
 
@@ -203,7 +219,7 @@ function handleUpdateUser($userController, $userId)
 
     if (isset($existingUserData['error'])) {
         http_response_code(404);
-        return ['error' => 'Usuário não encontrado'];
+        return ['error' => 'User not found'];
     }
 
     $user = new User(
@@ -231,42 +247,12 @@ function handleDeleteUser($userController, $userId)
 
     if (isset($existingUserData['error'])) {
         http_response_code(404);
-        return ['error' => 'Usuário não encontrado'];
+        return ['error' => 'User not found'];
     }
 
     if ($userController->deleteUser($userId))
         return $existingUserData;
 }
-
-// function handleCommentRequest($method, $uri)
-// {
-//     require_once 'config.php';
-
-//     $commentController = new CommentController($pdo);
-
-//     if ($method === 'GET' && strpos($uri, '/api/comments/task/') === 0) {
-//         $taskId = intval(substr($uri, 21));
-//         return handleGetTaskComments($commentController, $taskId);
-//     }
-//     if ($method === 'POST' && $uri === '/api/comments') {
-//         return handlePostComment($commentController);
-//     }
-//     if ($method === 'GET' && strpos($uri, '/api/comments/') === 0) {
-//         $commentId = intval(substr($uri, 14));
-//         return handleGetComment($commentController, $commentId);
-//     }
-//     if ($method === 'PUT' && strpos($uri, '/api/comments/') === 0) {
-//         $commentId = intval(substr($uri, 14));
-//         return handleUpdateComment($commentController, $commentId);
-//     }
-//     if ($method === 'DELETE' && strpos($uri, '/api/comments/') === 0) {
-//         $commentId = intval(substr($uri, 14));
-//         return handleDeleteComment($commentController, $commentId);
-//     }
-
-//     http_response_code(404);
-//     return ['error' => 'Route not found'];
-// }
 
 function handleGetTaskComments($commentController, $taskId)
 {
@@ -312,7 +298,7 @@ function handleUpdateComment($commentController, $taskId, $commentId)
 
     if (isset($existingCommentData['error'])) {
         http_response_code(404);
-        return ['error' => 'Comentário não encontrado'];
+        return ['error' => 'Comment not found'];
     }
 
     $comment = new Comment(
@@ -343,4 +329,14 @@ function handleDeleteComment($commentController, $commentId)
     $commentController->deleteComment($commentId);
 
     return $existingCommentData;
+}
+
+function handlePostLogin($userController)
+{
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    $email = $data["email"];
+    $password = $data["password"];
+
+    return $userController->executeLogin($email, $password);
 }

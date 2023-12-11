@@ -15,12 +15,12 @@ class User
     public function __construct($id, $username, $password, $email, $createdAt, $fullName, $isAdmin)
     {
         $this->id = $id;
-        $this->username = $username;
-        $this->password = $password;
-        $this->email = $email;
+        $this->setUsername($username);
+        $this->setPassword($password);
+        $this->setEmail($email);
         $this->createdAt = $createdAt;
-        $this->fullName = $fullName;
-        $this->isAdmin = $isAdmin;
+        $this->setFullName($fullName);
+        $this->setAdmin($isAdmin);
     }
 
     public function getId(): ?int
@@ -45,7 +45,7 @@ class User
 
     public function setPassword(?string $password): void
     {
-        $this->password = $password;
+        $this->password = md5($password);
     }
 
     public function getEmail(): ?string

@@ -123,7 +123,7 @@ class UserController
 
             $stmt->execute([
                 $username,
-                $password,
+                md5($password),
                 $email,
                 $formattedCreatedAt,
                 $fullName,
@@ -176,6 +176,54 @@ class UserController
             return true;
         } catch (\PDOException $e) {
             return ['error' => 'Error deleting user: ' . $e->getMessage()];
+        }
+    }
+
+    public function executeLogin($email, $password)
+    {
+        $password = md5($password);
+        try {
+            $stmt = $this->pdo->prepare('
+            SELECT * FROM user WHERE email = :email;
+        ');
+
+            $stmt->bindParam(':email', $email);
+            $stmt->execute();
+
+            $userData = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$userData) {
+                return ['error' => 'User not found'];
+            }
+
+            if ($password !== $userData['password']) {
+                return ['error' => 'Invalid password'];
+            }
+
+            return ['session' => md5($email . $password)];
+        } catch (\PDOException $e) {
+            return ['error' => 'Error during login: ' . $e->getMessage()];
+        }
+    }
+
+    public function verifySession($session)
+    {
+        try {
+            $stmt = $this->pdo->prepare('
+            SELECT email, password FROM user;
+        ');
+            $stmt->execute();
+
+            $arrayUsers = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            foreach ($arrayUsers as $user) {
+                if (md5($user['email'] . $user['password']) == $session)
+                    return true;
+            }
+
+            return false;
+        } catch (\PDOException $e) {
+            return ['error' => 'Error during session verify: ' . $e->getMessage()];
         }
     }
 }
