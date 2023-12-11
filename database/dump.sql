@@ -121,10 +121,10 @@ ENGINE = InnoDB;
 -- Table `mydb`.`task_comments`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`task_comments` (
-  `id` INT NOT NULL,
+  `id` INT NOT NULL AUTO_INCREMENT,
   `task_id` INT NULL,
   `description` TEXT NULL,
-  `image` TEXT NULL,
+  `image` LONGTEXT NULL,
   PRIMARY KEY (`id`),
   INDEX `task_mother_idx` (`task_id` ASC) VISIBLE,
   CONSTRAINT `task_mother`
@@ -171,6 +171,10 @@ INSERT INTO `task_users` (`user_id`, `task_id`) VALUES
 (3, 2),
 (1, 3);
 
+-- Inserindo dados de teste para task_comments com imagens em base64
+INSERT INTO `task_comments` (`id`, `task_id`, `description`, `image`) VALUES
+(2, 1, 'Comentario na Task 1', ''),
+(3, 3, 'Comentario na Task 3', '');
 
 
 SET SQL_MODE=@OLD_SQL_MODE;

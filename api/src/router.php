@@ -4,9 +4,12 @@ use App\Controller\TaskController;
 use App\Models\Task;
 use App\Controller\UserController;
 use App\Models\User;
+use App\Controller\CommentController;
+use App\Models\Comment;
 
 require_once 'Controller/TaskController.php';
 require_once 'Controller/UserController.php';
+require_once 'Controller/CommentController.php';
 
 
 function handleRequest($method, $uri)
@@ -15,6 +18,27 @@ function handleRequest($method, $uri)
 
     $taskController = new TaskController($pdo);
     $userController = new UserController($pdo);
+    $commentController = new CommentController($pdo);
+
+    if ($method === 'GET' && preg_match('/\/tasks\/(\d+)\/comments/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
+        return handleGetTaskComments($commentController, $taskId);
+    }
+    if ($method === 'POST' && preg_match('/\/tasks\/(\d+)\/comments/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
+        return handlePostComment($commentController, $taskId);
+    }
+    if ($method === 'PUT' && preg_match('/\/tasks\/(\d+)\/comments\/(\d+)/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
+        $commentId = intval($matches[2]);
+        return handleUpdateComment($commentController, $taskId, $commentId);
+    }
+
+    if ($method === 'DELETE' && preg_match('/\/tasks\/(\d+)\/comments\/(\d+)/', $uri, $matches)) {
+        $taskId = intval($matches[1]);
+        $commentId = intval($matches[2]);
+        return handleDeleteComment($commentController, $commentId);
+    }
 
     if ($method === 'GET' && $uri === '/api/tasks') {
         return handleGetTasks($taskController);
@@ -26,10 +50,10 @@ function handleRequest($method, $uri)
         $taskId = intval(substr($uri, 11));
         return handleGetTasks($taskController, $taskId);
     }
-    if ($method === 'PUT' && strpos($uri, '/api/tasks/') === 0) {
-        $taskId = intval(substr($uri, 11));
-        return handleUpdateTask($taskController, $taskId);
-    }
+    // if ($method === 'PUT' && strpos($uri, '/api/tasks/') === 0) {
+    //     $taskId = intval(substr($uri, 11));
+    //     return handleUpdateTask($taskController, $taskId);
+    // }
     if ($method === 'DELETE' && strpos($uri, '/api/tasks/') === 0) {
         $taskId = intval(substr($uri, 11));
         return handleDeleteTask($taskController, $taskId);
@@ -212,4 +236,111 @@ function handleDeleteUser($userController, $userId)
 
     if ($userController->deleteUser($userId))
         return $existingUserData;
+}
+
+// function handleCommentRequest($method, $uri)
+// {
+//     require_once 'config.php';
+
+//     $commentController = new CommentController($pdo);
+
+//     if ($method === 'GET' && strpos($uri, '/api/comments/task/') === 0) {
+//         $taskId = intval(substr($uri, 21));
+//         return handleGetTaskComments($commentController, $taskId);
+//     }
+//     if ($method === 'POST' && $uri === '/api/comments') {
+//         return handlePostComment($commentController);
+//     }
+//     if ($method === 'GET' && strpos($uri, '/api/comments/') === 0) {
+//         $commentId = intval(substr($uri, 14));
+//         return handleGetComment($commentController, $commentId);
+//     }
+//     if ($method === 'PUT' && strpos($uri, '/api/comments/') === 0) {
+//         $commentId = intval(substr($uri, 14));
+//         return handleUpdateComment($commentController, $commentId);
+//     }
+//     if ($method === 'DELETE' && strpos($uri, '/api/comments/') === 0) {
+//         $commentId = intval(substr($uri, 14));
+//         return handleDeleteComment($commentController, $commentId);
+//     }
+
+//     http_response_code(404);
+//     return ['error' => 'Route not found'];
+// }
+
+function handleGetTaskComments($commentController, $taskId)
+{
+    try {
+        return $commentController->getTaskComments($taskId);
+    } catch (PDOException $e) {
+        return ['error' => 'Database connection failed: ' . $e->getMessage()];
+    }
+}
+
+function handlePostComment($commentController, $taskId)
+{
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    $commentDescription = $data["description"];
+    $commentImage = $data["image"];
+
+    $result = $commentController->createNewComment($taskId, $commentDescription, $commentImage);
+
+    if (isset($result['error'])) {
+        http_response_code(500);
+    }
+
+    return $result;
+}
+
+function handleGetComment($commentController, $commentId)
+{
+    $comment = $commentController->getCommentById($commentId);
+
+    if (isset($comment['error'])) {
+        http_response_code(404);
+    }
+
+    return $comment;
+}
+
+function handleUpdateComment($commentController, $taskId, $commentId)
+{
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    $existingCommentData = $commentController->getCommentById($commentId);
+
+    if (isset($existingCommentData['error'])) {
+        http_response_code(404);
+        return ['error' => 'Comentário não encontrado'];
+    }
+
+    $comment = new Comment(
+        $commentId,
+        $taskId,
+        $data['description'] ?? $existingCommentData['description'],
+        $data['image'] ?? $existingCommentData['image']
+    );
+
+    $result = $commentController->updateCommentObject($comment);
+
+    if (isset($result['error'])) {
+        http_response_code(500);
+    }
+
+    return $result;
+}
+
+function handleDeleteComment($commentController, $commentId)
+{
+    $existingCommentData = $commentController->getCommentById($commentId);
+
+    if (isset($existingCommentData['error'])) {
+        http_response_code(404);
+        return ['error' => 'Comment not found'];
+    }
+
+    $commentController->deleteComment($commentId);
+
+    return $existingCommentData;
 }
