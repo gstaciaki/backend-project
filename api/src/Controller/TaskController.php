@@ -26,7 +26,7 @@ class TaskController
                 t.due_date,
                 t.priority,
                 JSON_ARRAYAGG(
-                    JSON_OBJECT("user_id", u.id, "username", u.username, "email", u.email, "is_admin", u.admin)
+                    JSON_OBJECT("user_id", u.id, "username", u.username, "email", u.email, "full_name", u.full_name, "is_admin", u.admin)
                 ) AS owners
             FROM        
                 tasks t
