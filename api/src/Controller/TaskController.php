@@ -205,16 +205,15 @@ class TaskController
     public function deleteTask($taskId)
     {
         try {
-
             $stmt = $this->pdo->prepare('
+            DELETE from task_comments where task_id = :taskId;
             DELETE from tasks WHERE id = :taskId
         ');
-            $stmt->bindParam(':taskId', $taskId);
-            $stmt->execute();
+            $stmt->execute([':taskId'=> $taskId]);
 
-            return $this->getTaskById($taskId);
+            return true;
         } catch (\PDOException $e) {
-            return false;
+            return $e;
         }
     }
 
