@@ -340,7 +340,7 @@ function handlePostLogin($userController)
 
     $session = $userController->executeLogin($email, $password);
 
-    if(isset($session["error"])) http_response_code(404);
+    if(isset($session["error"])) http_response_code(400);
 
     return $session;
 }
